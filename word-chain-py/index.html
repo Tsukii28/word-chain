@@ -455,7 +455,10 @@
   <script>
     let token = "";
     let socket = null;
+        // Các biến trạng thái toàn cục
+    let currentUsername = localStorage.getItem("username") || "";
     let currentRoomId = "";
+    let isMyTurn = false; // <-- Thêm dòng này để tránh lỗi ReferenceError
 
     function log(msg) {
       const el = document.getElementById("logs");
@@ -572,6 +575,7 @@
 
 
         if (room.status === "PLAYING") {
+        const isMyTurn = (room.current_turn === currentUsername || room.current_player === currentUsername);
           if (isMyTurn) {
             wordInput.disabled = false;
             sendBtn.disabled = false;
