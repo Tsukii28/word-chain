@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Chain Arena ✨</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #6c5ce7;
+      --primary-dark: #4834d4;
+      --accent-word: #2d3436;
+      --accent-neon: #00cec9;
+      --highlight: #fdcb6e;
+      --danger: #ff7675;
+      --success: #00b894;
+      --card-bg: #ffffff;
+      --bg: #f1f2f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Quicksand', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%);
+      min-height: 100vh;
+      padding: 24px 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #2d3436;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 1080px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Top Bar Header */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 2px dashed #dfe6e9;
+      margin-bottom: 20px;
+    }
+
+    .header-bar h2 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Layout 2 cột */
+    .game-grid {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 860px) {
+      .game-grid { grid-template-columns: 1fr; }
+    }
+
+    /* CỘT TRÁI: ĐẤU TRƯỜNG TỪ VỰNG */
+    .battle-zone {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .control-panel {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: #f8f9fa;
+      padding: 10px 14px;
+      border-radius: 16px;
+      border: 1px solid #e9ecef;
+    }
+
+    /* KHU VỰC HIỆN TỪ NỔI BẬT */
+    .spotlight-word-card {
+      background: linear-gradient(145deg, #1e272e, #2f3542);
+      border-radius: 20px;
+      padding: 30px 20px;
+      text-align: center;
+      position: relative;
+      border: 3px solid #70a1ff;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+      transition: transform 0.15s ease;
+    }
+
+    .spotlight-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent-neon);
+      color: #1e272e;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 14px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .spotlight-main-word {
+      font-size: 44px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: 2px;
+      text-shadow: 0 0 15px rgba(112, 161, 255, 0.7);
+      margin: 10px 0;
+    }
+
+    .spotlight-meta {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .meta-tag {
+      padding: 6px 14px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .meta-tag.ipa {
+      background: rgba(112, 161, 255, 0.2);
+      color: #70a1ff;
+      border: 1px solid #70a1ff;
+    }
+
+    .meta-tag.meaning {
+      background: rgba(46, 213, 115, 0.2);
+      color: #2ed573;
+      border: 1px solid #2ed573;
+    }
+
+    /* Toast thông báo lỗi */
+    .toast-alert {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: #ff4757;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 8px 20px rgba(255, 71, 87, 0.35);
+      z-index: 9999;
+      transform: translateY(-50px);
+      opacity: 0;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toast-alert.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    /* ĐỒNG HỒ & TRẠNG THÁI LƯỢT */
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      padding: 12px 18px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      border: 1px solid #edf2f7;
+    }
+
+    .timer-badge {
+      font-size: 18px;
+      font-weight: 800;
+      color: #ff4757;
+      background: #ffeaa7;
+      padding: 6px 16px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* KHU VỰC NHẬP TỪ NỔI BẬT */
+    .action-input-box {
+      background: linear-gradient(135deg, #e0f2fe, #f3e8ff);
+      padding: 16px;
+      border-radius: 18px;
+      border: 2px solid #a855f7;
+      box-shadow: 0 8px 18px rgba(168, 85, 247, 0.15);
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-input-box input {
+      flex: 1;
+      padding: 14px 18px;
+      border: 2px solid #c084fc;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      background: #ffffff;
+      color: #2e1065;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .action-input-box input:focus {
+      border-color: #7e22ce;
+      box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.25);
+    }
+
+    /* CỘT PHẢI: CHAT NHỎ GỌN & LOG */
+    .side-zone {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .chat-panel {
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      height: 250px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #64748b;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chat-stream {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-right: 4px;
+      margin-bottom: 8px;
+    }
+
+    .chat-pill {
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 10px;
+      max-width: 85%;
+      word-break: break-word;
+      font-weight: 600;
+    }
+
+    .chat-pill.mine {
+      align-self: flex-end;
+      background: #dbeafe;
+      color: #1e40af;
+      border-bottom-right-radius: 2px;
+    }
+
+    .chat-pill.other {
+      align-self: flex-start;
+      background: #f1f5f9;
+      color: #334155;
+      border-bottom-left-radius: 2px;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .chat-input-row input {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 12px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      outline: none;
+    }
+
+    .log-panel {
+      background: #1e293b;
+      color: #94a3b8;
+      border-radius: 16px;
+      padding: 12px;
+      height: 150px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* Button chung */
+    .btn {
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+
+    .btn:active:not(:disabled) { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-action { background: #9333ea; color: #fff; }
+    .btn-action:hover:not(:disabled) { background: #7e22ce; }
+    .btn-secondary { background: #e2e8f0; color: #334155; }
+    .btn-success { background: #10b981; color: #fff; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 999;
+    }
+    .modal-card {
+      background: #fff; padding: 24px; border-radius: 20px;
+      width: 90%; max-width: 360px; text-align: center;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header Thông tin -->
+    <div class="header-bar">
+      <h2>✨ Word Chain Arena</h2>
+      <div id="userBadge" class="hidden" style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-weight: 700;">Người chơi: <b id="displayUser" style="color: var(--primary);">---</b></span>
+        <button class="btn btn-secondary" style="padding: 5px 12px; font-size: 12px;" onclick="location.reload()">Đăng xuất</button>
+      </div>
+    </div>
+
+    <!-- KHUNG ĐĂNG NHẬP (Chỉ hiện khi chưa đăng nhập) -->
+    <div id="authSection" style="max-width: 420px; margin: 40px auto; text-align: center;">
+      <h3 style="margin-bottom: 16px;">👋 Đăng nhập để vào phòng</h3>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <input id="authUsername" style="padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1;" placeholder="Tên tài khoản" value="player1">
+        <input id="authPassword" type="password" style="padding: 12px; border-radius: 12px; border: 1px solid #cbd5e1;" placeholder="Mật khẩu" value="123456">
+        <div style="display: flex; gap: 10px; margin-top: 6px;">
+          <button class="btn btn-action" style="flex: 1;" onclick="handleLogin()">Đăng nhập</button>
+          <button class="btn btn-secondary" style="flex: 1;" onclick="handleRegister()">Đăng ký</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KHU VỰC CHÍNH (GIAO DIỆN CHƠI) -->
+    <div id="gameSection" class="game-grid hidden">
+      
+      <!-- CỘT CHÍNH (BATTLE ZONE) -->
+      <div class="battle-zone">
+        <!-- Bảng điều khiển phòng -->
+        <div class="control-panel">
+          <input id="roomIdInput" style="padding: 8px 12px; border-radius: 10px; border: 1px solid #cbd5e1; width: 140px; font-weight: 700;" value="room 1">
+          <button class="btn btn-secondary" onclick="joinRoom()">Vào phòng</button>
+          <button id="readyBtn" class="btn btn-success" onclick="toggleReady()" disabled>Sẵn sàng</button>
+          <div style="margin-left: auto; font-size: 13px; font-weight: 700;">
+            Trạng thái: <span id="roomStatus" style="color: var(--primary);">Chờ</span>
+          </div>
+        </div>
+
+        <!-- KHU VỰC HIỆN TỪ NỔI BẬT -->
+        <div class="spotlight-word-card">
+          <div class="spotlight-badge">TỪ HIỆN TẠI</div>
+          <div class="spotlight-main-word" id="lastWordDisplay">READY</div>
+          <div class="spotlight-meta">
+            <span class="meta-tag ipa" id="wordIpaDisplay">🔊 /.../</span>
+            <span class="meta-tag meaning" id="wordMeaningDisplay">📖 Đang đợi từ bắt đầu</span>
+          </div>
+        </div>
+
+        <!-- Trạng thái lượt & Đồng hồ -->
+        <div class="status-row">
+          <div id="playerList" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+          <div class="timer-badge">
+            ⏳ <span id="timerDisplay">--</span>s
+          </div>
+        </div>
+
+        <!-- KHU VỰC NHẬP TỪ NỔI BẬT -->
+        <div class="action-input-box">
+          <input id="wordInput" placeholder="Chờ lượt..." disabled onkeydown="if(event.key==='Enter') sendWord()">
+          <button id="sendBtn" class="btn btn-action" onclick="sendWord()" disabled>Nối Từ 🚀</button>
+        </div>
+      </div>
+
+      <!-- CỘT PHỤ (CHAT & LOG) -->
+      <div class="side-zone">
+        <!-- Khung chat mini gọn gàng -->
+        <div class="chat-panel">
+          <div class="panel-title">💬 Khung chat trò chuyện</div>
+          <div class="chat-stream" id="chatMessages"></div>
+          <div class="chat-input-row">
+            <input id="chatInput" placeholder="Nhắn tin nhanh..." onkeydown="if(event.key==='Enter') sendChat()">
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="sendChat()">Gửi</button>
+          </div>
+        </div>
+
+        <!-- Bảng tin ván đấu -->
+        <div class="panel-title" style="margin-bottom: -6px;">📜 Bảng tin ván đấu</div>
+        <div class="log-panel" id="logs"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- POPUP BÁO MẤT LƯỢT -->
+  <div id="timeoutModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3 id="modalTitle" style="color: #ff4757; margin-bottom: 8px;">⏰ HẾT GIỜ!</h3>
+      <p id="modalMsg" style="font-size: 14px; color: #64748b; margin-bottom: 16px;"></p>
+      <button class="btn btn-action" style="width: 100%;" onclick="closeModal()">Đã hiểu</button>
+    </div>
+  </div>
+
+  <script>
+    let token = "";
+    let socket = null;
+    let currentRoomId = "";
+
+    function log(msg) {
+      const el = document.getElementById("logs");
+      el.innerHTML += `<div>${msg}</div>`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    async function handleLogin() {
+      const u = document.getElementById("authUsername").value.trim();
+      const p = document.getElementById("authPassword").value.trim();
+      if (!u || !p) return alert("Nhập đủ tài khoản/mật khẩu!");
+
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: u, password: p })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        token = data.access_token;
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("gameSection").classList.remove("hidden");
+        document.getElementById("userBadge").classList.remove("hidden");
+        document.getElementById("displayUser").innerText = data.username;
+        initSocket();
+      } else {
+        alert(data.detail || "Đăng nhập thất bại");
+      }
+    }
+
+    async function handleRegister() {
+      const u = document.getElementById("authUsername").value.trim();
+      const p = document.getElementById("authPassword").value.trim();
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: u, password: p })
+      });
+      const d = await res.json();
+      alert(res.ok ? "Đăng ký thành công! Hãy đăng nhập." : d.detail);
+    }
+
+    function initSocket() {
+      socket = io({ auth: { token: token } });
+
+      socket.on("timer_tick", (d) => {
+        const timerEl = document.getElementById("timerDisplay");
+        if (timerEl) {
+          timerEl.innerText = d.seconds;
+          timerEl.parentElement.style.color = (d.seconds <= 5) ? "#ff4757" : "#6c5ce7";
+        }
+      });
+
+      socket.on("word_accepted", (d) => {
+        document.getElementById("lastWordDisplay").innerText = d.last_word;
+        document.getElementById("wordIpaDisplay").innerText = `🔊 ${d.ipa}`;
+        document.getElementById("wordMeaningDisplay").innerText = `📖 ${d.meaning}`;
+
+        const box = document.querySelector(".spotlight-word-card");
+        box.style.transform = "scale(1.02)";
+        setTimeout(() => box.style.transform = "scale(1)", 150);
+        log(`💬 <b>${d.username}</b>: <span style="color:#70a1ff;">${d.word}</span> (${d.meaning})`);
+      });
+
+      socket.on("new_chat_message", (d) => {
+        const box = document.getElementById("chatMessages");
+        const isMe = (d.is_me_sid === socket.id);
+        const pill = document.createElement("div");
+        pill.className = `chat-pill ${isMe ? 'mine' : 'other'}`;
+        pill.innerHTML = `<b>${isMe ? 'Bạn' : d.sender}:</b> ${d.message}`;
+        box.appendChild(pill);
+        box.scrollTop = box.scrollHeight;
+      });
+
+      socket.on("turn_timeout", (data) => {
+        log(`⏰ <b>${data.timed_out_user}</b> hết giờ! Chuyển cho <b>${data.next_user}</b>.`);
+        const isMe = (data.timed_out_sid === socket.id);
+        showTimeoutModal(isMe, data.timed_out_user, data.next_user);
+      });
+
+      // Bắt thông báo lỗi khi gõ sai / trùng từ / sai lượt
+      socket.on("error_message", (d) => {
+        // Ghi vào bảng tin màu đỏ
+        log(`⚠️ <b style="color: #ff4757;">Lỗi:</b> ${d.message}`);
+
+        // Hiển thị hiệu ứng rung lắc ô nhập từ
+        const input = document.getElementById("wordInput");
+        if (input) {
+          input.style.border = "2px solid #ff4757";
+          input.style.backgroundColor = "#ffeaa7";
+          setTimeout(() => {
+            input.style.border = "2px solid #c084fc";
+            input.style.backgroundColor = "#ffffff";
+          }, 600);
+        }
+
+        // Hiện cảnh báo ngắn
+        showToast(d.message);
+      });
+
+      socket.on("room_updated", (room) => {
+        document.getElementById("roomStatus").innerText = room.status;
+        if (room.last_word) document.getElementById("lastWordDisplay").innerText = room.last_word;
+        if (room.last_ipa) document.getElementById("wordIpaDisplay").innerText = `🔊 ${room.last_ipa}`;
+        if (room.last_meaning) document.getElementById("wordMeaningDisplay").innerText = `📖 ${room.last_meaning}`;
+
+        document.getElementById("playerList").innerHTML = room.players.map(p => {
+          const isTurn = (p.sid === room.current_player_sid);
+          return `
+            <span style="font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: ${isTurn ? '#ffeaa7' : '#f1f2f6'}; color: ${isTurn ? '#d35400' : '#2d3436'}; border: 1px solid ${isTurn ? '#fdcb6e' : '#e2e8f0'};">
+              ${isTurn ? '⭐' : '🐾'} ${p.username} (${p.score}đ) [${p.is_ready ? 'Ready' : 'Chờ'}]
+            </span>
+          `;
+        }).join("");
+
+        const isMyTurn = (room.status === "PLAYING" && room.current_player_sid === socket.id);
+        const wordInput = document.getElementById("wordInput");
+        const sendBtn = document.getElementById("sendBtn");
+
+        if (room.status === "PLAYING") {
+          if (isMyTurn) {
+            wordInput.disabled = false;
+            sendBtn.disabled = false;
+            const nextChar = room.last_word ? room.last_word.slice(-1) : "";
+            wordInput.placeholder = nextChar ? `Lượt bạn! Nối tiếp chữ '${nextChar}'...` : "Lượt bạn! Gõ từ bất kỳ...";
+            wordInput.focus();
+          } else {
+            wordInput.disabled = true;
+            sendBtn.disabled = true;
+            wordInput.placeholder = "Đang chờ đối thủ nối từ...";
+          }
+        }
+      });
+    }
+
+    function showTimeoutModal(isMe, timedOutUser, nextUser) {
+      const modal = document.getElementById("timeoutModal");
+      const title = document.getElementById("modalTitle");
+      const msg = document.getElementById("modalMsg");
+
+      if (isMe) {
+        title.innerText = "💔 BẠN MẤT LƯỢT!";
+        msg.innerHTML = `Hết 15 giây mà chưa nối được từ.<br>Lượt chuyển sang cho <b>${nextUser}</b>!`;
+      } else {
+        title.innerText = "🎁 TỚI LƯỢT BẠN!";
+        msg.innerHTML = `<b>${timedOutUser}</b> đã hết giờ.<br>Bây giờ tới lượt <b>bạn</b> ra từ!`;
+      }
+
+      modal.classList.remove("hidden");
+      setTimeout(() => closeModal(), 3000);
+    }
+
+    function closeModal() {
+      document.getElementById("timeoutModal").classList.add("hidden");
+    }
+
+    function joinRoom() {
+      currentRoomId = document.getElementById("roomIdInput").value.trim();
+      socket.emit("join_room", { room_id: currentRoomId });
+      document.getElementById("readyBtn").disabled = false;
+      log(`🚪 Vào phòng: <b>${currentRoomId}</b>`);
+    }
+
+    function toggleReady() {
+      socket.emit("toggle_ready", { room_id: currentRoomId });
+    }
+
+    function sendWord() {
+      const input = document.getElementById("wordInput");
+      const word = input.value.trim();
+      if (word && currentRoomId) {
+        socket.emit("submit_word", { room_id: currentRoomId, word: word });
+        input.value = "";
+      }
+    }
+
+    function showToast(msg) {
+    const toast = document.getElementById("toastAlert");
+    const msgEl = document.getElementById("toastMsg");
+    msgEl.innerText = msg;
+    toast.classList.add("show");
+    setTimeout(() => {
+        toast.classList.remove("show");
+    }, 2500);
+    }
+    function sendChat() {
+      const input = document.getElementById("chatInput");
+      const msg = input.value.trim();
+      if (msg && currentRoomId) {
+        socket.emit("send_chat", { room_id: currentRoomId, message: msg });
+        input.value = "";
+      }
+    }
+    </script>
+    <div id="toastAlert" class="toast-alert">
+    <span>⚠️</span> <span id="toastMsg">Từ này đã được sử dụng!</span>
+    </div>
+</body>
+</html>

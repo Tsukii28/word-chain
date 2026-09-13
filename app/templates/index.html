@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <!-- Form thêm từ mới -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white fw-bold">Thêm Từ Mới</div>
+            <div class="card-body">
+                <form action="/add" method="POST">
+                    <div class="mb-2">
+                        <label class="form-label">Từ vựng (English):</label>
+                        <input type="text" name="word" class="form-control" required placeholder="e.g. Tenacious">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Từ loại:</label>
+                        <input type="text" name="part_of_speech" class="form-control" placeholder="adj, n, v...">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Nghĩa tiếng Việt:</label>
+                        <input type="text" name="meaning" class="form-control" required placeholder="e.g. Kiên trì">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ví dụ:</label>
+                        <textarea name="example" class="form-control" rows="2" placeholder="He is a tenacious learner."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Lưu Từ Vựng</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danh sách từ đã lưu -->
+    <div class="col-md-8">
+        <h4 class="mb-3">Danh Sách Từ Vựng Của Bạn</h4>
+        <div class="row g-3">
+            {% for item in words %}
+            <div class="col-md-6">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title text-primary mb-0">{{ item.word }}</h5>
+                            <span class="badge bg-secondary">{{ item.part_of_speech }}</span>
+                        </div>
+                        <p class="card-text mt-2 fw-semibold">{{ item.meaning }}</p>
+                        {% if item.example %}
+                        <p class="text-muted small fst-italic">"{{ item.example }}"</p>
+                        {% endif %}
+                        <a href="/delete/{{ item.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc muốn xóa?')">Xóa</a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">Chưa có từ vựng nào. Hãy thêm vài từ để bắt đầu!</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
