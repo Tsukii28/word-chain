@@ -1,23 +1,30 @@
 import os
 import asyncio
 from typing import Dict, List, Optional
-
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-DICT_PATH = os.path.join(CURRENT_DIR, "words.txt")
+import urllib.request
 
 ENGLISH_WORDS: set[str] = set()
 
-# Nạp từ file text nếu có
-if os.path.exists(DICT_PATH):
-    with open(DICT_PATH, "r", encoding="utf-8") as f:
-        ENGLISH_WORDS = {line.strip().lower() for line in f if len(line.strip()) >= 2}
-else:
-    # Tập từ dự phòng nếu chưa có file words.txt trên git
-    print("⚠️ CẢNH BÁO: Chưa tìm thấy file words.txt, sử dụng từ điển cơ bản.")
-    ENGLISH_WORDS = {
-        "apple", "elephant", "tiger", "rabbit", "table", "egg", 
-        "game", "orange", "energy", "yellow", "water", "river"
-    }
+def load_english_words():
+    global ENGLISH_WORDS
+    url = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"
+    try:
+        print(">>> Đang nạp từ điển tiếng Anh...")
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            content = response.read().decode('utf-8')
+            ENGLISH_WORDS = {line.strip().lower() for line in content.splitlines() if len(line.strip()) >= 2}
+        print(f">>> [TỪ ĐIỂN] Nạp thành công {len(ENGLISH_WORDS)} từ!")
+    except Exception as e:
+        print(f">>> [LỖI NẠP TỪ]: {e}, dùng tạm danh sách mở rộng.")
+        ENGLISH_WORDS = {
+            "apple", "elephant", "tiger", "rabbit", "table", "egg", "game", 
+            "orange", "energy", "yellow", "water", "river", "road", "dog", "cat",
+            "time", "year", "people", "way", "day", "man", "thing", "woman", "life", "child"
+        }
+
+# Gọi nạp từ ngay khi import module
+load_english_words()
 class Player:
     def __init__(self, sid: str, username: str):
         self.sid = sid
