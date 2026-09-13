@@ -5,6 +5,17 @@ from nltk.corpus import words
 # Nạp danh sách từ tiếng Anh vào Set để lookup O(1)
 ENGLISH_WORDS = set(w.lower() for w in words.words() if len(w) >= 2)
 
+import nltk
+
+# Tự động tải danh sách từ vựng nếu môi trường chưa có sẵn
+try:
+    nltk.data.find("corpora/words")
+except LookupError:
+    nltk.download("words")
+
+from nltk.corpus import words
+ENGLISH_WORDS = set(words.words())
+
 import os
 
 # Đường dẫn an toàn trỏ đúng tới thư mục chứa file code hiện tại
