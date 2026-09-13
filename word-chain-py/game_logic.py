@@ -1,37 +1,23 @@
+import os
 import asyncio
 from typing import Dict, List, Optional
-from nltk.corpus import words
 
-# Nạp danh sách từ tiếng Anh vào Set để lookup O(1)
-ENGLISH_WORDS = set(w.lower() for w in words.words() if len(w) >= 2)
-
-import nltk
-
-# Tự động tải danh sách từ vựng nếu môi trường chưa có sẵn
-try:
-    nltk.data.find("corpora/words")
-except LookupError:
-    nltk.download("words")
-
-from nltk.corpus import words
-ENGLISH_WORDS = set(words.words())
-
-import os
-
-# Đường dẫn an toàn trỏ đúng tới thư mục chứa file code hiện tại
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-DICT_PATH = os.path.join(CURRENT_DIR, "words.txt")  # hoặc words_alpha.txt
+DICT_PATH = os.path.join(CURRENT_DIR, "words.txt")
 
-ENGLISH_WORDS = set()
+ENGLISH_WORDS: set[str] = set()
 
-# Nạp từ file nếu có, hoặc tạo tập dự phòng để tránh crash
+# Nạp từ file text nếu có
 if os.path.exists(DICT_PATH):
     with open(DICT_PATH, "r", encoding="utf-8") as f:
-        ENGLISH_WORDS = {line.strip().lower() for line in f if line.strip()}
+        ENGLISH_WORDS = {line.strip().lower() for line in f if len(line.strip()) >= 2}
 else:
-    # Tập từ dự phòng tối thiểu nếu quên push file từ điển lên Git
-    print("⚠️ CẢNH BÁO: Không tìm thấy file words.txt, sử dụng tập từ cơ bản!")
-    ENGLISH_WORDS = {"apple", "elephant", "tiger", "rabbit", "table", "egg", "game", "orange", "energy", "yellow"}
+    # Tập từ dự phòng nếu chưa có file words.txt trên git
+    print("⚠️ CẢNH BÁO: Chưa tìm thấy file words.txt, sử dụng từ điển cơ bản.")
+    ENGLISH_WORDS = {
+        "apple", "elephant", "tiger", "rabbit", "table", "egg", 
+        "game", "orange", "energy", "yellow", "water", "river"
+    }
 class Player:
     def __init__(self, sid: str, username: str):
         self.sid = sid
