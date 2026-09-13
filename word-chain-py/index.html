@@ -509,16 +509,19 @@
         }
       });
 
-      socket.on("word_accepted", (d) => {
-        document.getElementById("lastWordDisplay").innerText = d.last_word;
-        document.getElementById("wordIpaDisplay").innerText = `🔊 ${d.ipa}`;
-        document.getElementById("wordMeaningDisplay").innerText = `📖 ${d.meaning}`;
+      socket.on("word_accepted", (data) => {
+    // 1. Cập nhật từ vựng hiện tại
+    const wordDisplay = document.getElementById("currentWord");
+    if (wordDisplay) wordDisplay.innerText = data.last_word || data.word;
 
-        const box = document.querySelector(".spotlight-word-card");
-        box.style.transform = "scale(1.02)";
-        setTimeout(() => box.style.transform = "scale(1)", 150);
-        log(`💬 <b>${d.username}</b>: <span style="color:#70a1ff;">${d.word}</span> (${d.meaning})`);
-      });
+    // 2. Cập nhật IPA
+    const ipaDisplay = document.getElementById("wordIpa");
+    if (ipaDisplay) ipaDisplay.innerText = data.ipa || `/${data.word}/`;
+
+    // 3. Cập nhật Nghĩa
+    const meaningDisplay = document.getElementById("wordMeaning");
+    if (meaningDisplay) meaningDisplay.innerText = data.meaning || "Từ vựng tiếng Anh";
+});
 
       socket.on("new_chat_message", (d) => {
         const box = document.getElementById("chatMessages");
@@ -557,23 +560,16 @@
       });
 
       socket.on("room_updated", (room) => {
-        document.getElementById("roomStatus").innerText = room.status;
-        if (room.last_word) document.getElementById("lastWordDisplay").innerText = room.last_word;
-        if (room.last_ipa) document.getElementById("wordIpaDisplay").innerText = `🔊 ${room.last_ipa}`;
-        if (room.last_meaning) document.getElementById("wordMeaningDisplay").innerText = `📖 ${room.last_meaning}`;
+    if (room.last_word) {
+        const wordEl = document.getElementById("currentWord");
+        const ipaEl = document.getElementById("wordIpa");
+        const meaningEl = document.getElementById("wordMeaning");
 
-        document.getElementById("playerList").innerHTML = room.players.map(p => {
-          const isTurn = (p.sid === room.current_player_sid);
-          return `
-            <span style="font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: ${isTurn ? '#ffeaa7' : '#f1f2f6'}; color: ${isTurn ? '#d35400' : '#2d3436'}; border: 1px solid ${isTurn ? '#fdcb6e' : '#e2e8f0'};">
-              ${isTurn ? '⭐' : '🐾'} ${p.username} (${p.score}đ) [${p.is_ready ? 'Ready' : 'Chờ'}]
-            </span>
-          `;
-        }).join("");
+        if (wordEl) wordEl.innerText = room.last_word;
+        if (ipaEl && room.last_ipa) ipaEl.innerText = room.last_ipa;
+        if (meaningEl && room.last_meaning) meaningEl.innerText = room.last_meaning;
+    }
 
-        const isMyTurn = (room.status === "PLAYING" && room.current_player_sid === socket.id);
-        const wordInput = document.getElementById("wordInput");
-        const sendBtn = document.getElementById("sendBtn");
 
         if (room.status === "PLAYING") {
           if (isMyTurn) {

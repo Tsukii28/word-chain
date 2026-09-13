@@ -76,7 +76,8 @@ async def fetch_word_details_fast(word: str) -> dict:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
 
-    async with httpx.AsyncClient(headers=headers, timeout=1.5, follow_redirects=True) as client:
+    # Nới timeout lên 3.5s để server Render không bị đứt kết nối sớm
+    async with httpx.AsyncClient(headers=headers, timeout=3.5, follow_redirects=True) as client:
         task_ipa = get_clean_ipa(word_clean, client)
 
         async def get_meaning():
@@ -85,18 +86,21 @@ async def fetch_word_details_fast(word: str) -> dict:
                 r = await client.get("https://translate.googleapis.com/translate_a/single", params=params)
                 if r.status_code == 200:
                     d = r.json()
-                    if d and d[0]:
-                        return "".join([part[0] for part in d[0] if part[0]])
-            except Exception:
-                pass
-            return "Từ tiếng Anh"
+                    if d and d[0] and d[0][0]:
+                        return d[0][0][0]
+            except Exception as e:
+                print(f">>> [LỖI DỊCH NGHĨA]: {e}")
+            return "Từ vựng tiếng Anh"
 
         results = await asyncio.gather(task_ipa, get_meaning(), return_exceptions=True)
+        
+        # Kiểm tra kết quả bọc an toàn chống exception
         ipa_res = results[0] if isinstance(results[0], str) else f"/{word_clean}/"
-        meaning_res = results[1] if isinstance(results[1], str) else "Từ tiếng Anh"
+        meaning_res = results[1] if isinstance(results[1], str) else "Từ vựng tiếng Anh"
 
     res_data = {"ipa": ipa_res, "meaning": meaning_res}
     WORD_CACHE[word_clean] = res_data
+    print(f">>> [TRA TỪ XONG] {word_clean} -> IPA: {ipa_res}, Nghĩa: {meaning_res}")
     return res_data
 
 # Alias đảm bảo tương thích mọi hàm gọi
