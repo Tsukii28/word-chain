@@ -49,7 +49,6 @@
       box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
     }
 
-    /* Top Bar Header */
     .header-bar {
       display: flex;
       justify-content: space-between;
@@ -68,7 +67,6 @@
       gap: 8px;
     }
 
-    /* Layout 2 cột */
     .game-grid {
       display: grid;
       grid-template-columns: 1.6fr 1fr;
@@ -79,7 +77,6 @@
       .game-grid { grid-template-columns: 1fr; }
     }
 
-    /* CỘT TRÁI: ĐẤU TRƯỜNG TỪ VỰNG */
     .battle-zone {
       display: flex;
       flex-direction: column;
@@ -96,7 +93,6 @@
       border: 1px solid #e9ecef;
     }
 
-    /* KHU VỰC HIỆN TỪ NỔI BẬT */
     .spotlight-word-card {
       background: linear-gradient(145deg, #1e272e, #2f3542);
       border-radius: 20px;
@@ -158,7 +154,6 @@
       border: 1px solid #2ed573;
     }
 
-    /* Toast thông báo lỗi */
     .toast-alert {
       position: fixed;
       top: 24px;
@@ -178,11 +173,12 @@
       align-items: center;
       gap: 8px;
     }
+
     .toast-alert.show {
       transform: translateY(0);
       opacity: 1;
     }
-    /* ĐỒNG HỒ & TRẠNG THÁI LƯỢT */
+
     .status-row {
       display: flex;
       justify-content: space-between;
@@ -192,6 +188,24 @@
       border-radius: 16px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
       border: 1px solid #edf2f7;
+    }
+
+    .player-chip {
+      background: #f1f5f9;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 2px solid transparent;
+    }
+
+    .player-chip.active-turn {
+      border-color: #a855f7;
+      background: #f3e8ff;
+      color: #6b21a8;
     }
 
     .timer-badge {
@@ -206,7 +220,6 @@
       gap: 6px;
     }
 
-    /* KHU VỰC NHẬP TỪ NỔI BẬT */
     .action-input-box {
       background: linear-gradient(135deg, #e0f2fe, #f3e8ff);
       padding: 16px;
@@ -235,7 +248,6 @@
       box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.25);
     }
 
-    /* CỘT PHẢI: CHAT NHỎ GỌN & LOG */
     .side-zone {
       display: flex;
       flex-direction: column;
@@ -321,7 +333,6 @@
       line-height: 1.5;
     }
 
-    /* Button chung */
     .btn {
       padding: 10px 18px;
       font-size: 14px;
@@ -344,7 +355,6 @@
     .btn-secondary { background: #e2e8f0; color: #334155; }
     .btn-success { background: #10b981; color: #fff; }
 
-    /* Modal */
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(15, 23, 42, 0.6);
@@ -361,16 +371,16 @@
 <body>
 
   <div class="app-container">
-    <!-- Header Thông tin -->
+    <!-- Header -->
     <div class="header-bar">
       <h2>✨ Word Chain Arena</h2>
       <div id="userBadge" class="hidden" style="display: flex; align-items: center; gap: 12px;">
         <span style="font-weight: 700;">Người chơi: <b id="displayUser" style="color: var(--primary);">---</b></span>
-        <button class="btn btn-secondary" style="padding: 5px 12px; font-size: 12px;" onclick="location.reload()">Đăng xuất</button>
+        <button class="btn btn-secondary" style="padding: 5px 12px; font-size: 12px;" onclick="handleLogout()">Đăng xuất</button>
       </div>
     </div>
 
-    <!-- KHUNG ĐĂNG NHẬP (Chỉ hiện khi chưa đăng nhập) -->
+    <!-- KHUNG ĐĂNG NHẬP -->
     <div id="authSection" style="max-width: 420px; margin: 40px auto; text-align: center;">
       <h3 style="margin-bottom: 16px;">👋 Đăng nhập để vào phòng</h3>
       <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -383,14 +393,13 @@
       </div>
     </div>
 
-    <!-- KHU VỰC CHÍNH (GIAO DIỆN CHƠI) -->
+    <!-- KHU VỰC CHƠI GAME -->
     <div id="gameSection" class="game-grid hidden">
       
-      <!-- CỘT CHÍNH (BATTLE ZONE) -->
+      <!-- CỘT CHÍNH -->
       <div class="battle-zone">
-        <!-- Bảng điều khiển phòng -->
         <div class="control-panel">
-          <input id="roomIdInput" style="padding: 8px 12px; border-radius: 10px; border: 1px solid #cbd5e1; width: 140px; font-weight: 700;" value="room 1">
+          <input id="roomIdInput" style="padding: 8px 12px; border-radius: 10px; border: 1px solid #cbd5e1; width: 140px; font-weight: 700;" value="room-1">
           <button class="btn btn-secondary" onclick="joinRoom()">Vào phòng</button>
           <button id="readyBtn" class="btn btn-success" onclick="toggleReady()" disabled>Sẵn sàng</button>
           <div style="margin-left: auto; font-size: 13px; font-weight: 700;">
@@ -398,17 +407,15 @@
           </div>
         </div>
 
-        <!-- KHU VỰC HIỆN TỪ NỔI BẬT -->
         <div class="spotlight-word-card">
           <div class="spotlight-badge">TỪ HIỆN TẠI</div>
           <div class="spotlight-main-word" id="lastWordDisplay">READY</div>
           <div class="spotlight-meta">
             <span class="meta-tag ipa" id="wordIpaDisplay">🔊 /.../</span>
-            <span class="meta-tag meaning" id="wordMeaningDisplay">📖 Đang đợi từ bắt đầu</span>
+            <span class="meta-tag meaning" id="wordMeaningDisplay">📖 Đang đợi trận đấu</span>
           </div>
         </div>
 
-        <!-- Trạng thái lượt & Đồng hồ -->
         <div class="status-row">
           <div id="playerList" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
           <div class="timer-badge">
@@ -416,16 +423,14 @@
           </div>
         </div>
 
-        <!-- KHU VỰC NHẬP TỪ NỔI BẬT -->
         <div class="action-input-box">
           <input id="wordInput" placeholder="Chờ lượt..." disabled onkeydown="if(event.key==='Enter') sendWord()">
           <button id="sendBtn" class="btn btn-action" onclick="sendWord()" disabled>Nối Từ 🚀</button>
         </div>
       </div>
 
-      <!-- CỘT PHỤ (CHAT & LOG) -->
+      <!-- CỘT PHỤ -->
       <div class="side-zone">
-        <!-- Khung chat mini gọn gàng -->
         <div class="chat-panel">
           <div class="panel-title">💬 Khung chat trò chuyện</div>
           <div class="chat-stream" id="chatMessages"></div>
@@ -435,7 +440,6 @@
           </div>
         </div>
 
-        <!-- Bảng tin ván đấu -->
         <div class="panel-title" style="margin-bottom: -6px;">📜 Bảng tin ván đấu</div>
         <div class="log-panel" id="logs"></div>
       </div>
@@ -443,22 +447,25 @@
     </div>
   </div>
 
-  <!-- POPUP BÁO MẤT LƯỢT -->
+  <!-- POPUP BÁO MẤT LƯỢT / KẾT THÚC -->
   <div id="timeoutModal" class="modal-overlay hidden">
     <div class="modal-card">
-      <h3 id="modalTitle" style="color: #ff4757; margin-bottom: 8px;">⏰ HẾT GIỜ!</h3>
+      <h3 id="modalTitle" style="color: #ff4757; margin-bottom: 8px;">⏰ THÔNG BÁO</h3>
       <p id="modalMsg" style="font-size: 14px; color: #64748b; margin-bottom: 16px;"></p>
       <button class="btn btn-action" style="width: 100%;" onclick="closeModal()">Đã hiểu</button>
     </div>
   </div>
 
+  <!-- TOAST ALERT -->
+  <div id="toastAlert" class="toast-alert">
+    <span>⚠️</span> <span id="toastMsg">Lỗi!</span>
+  </div>
+
   <script>
-    let token = "";
-    let socket = null;
-        // Các biến trạng thái toàn cục
+    let token = localStorage.getItem("token") || "";
     let currentUsername = localStorage.getItem("username") || "";
+    let socket = null;
     let currentRoomId = "";
-    let isMyTurn = false; // <-- Thêm dòng này để tránh lỗi ReferenceError
 
     function log(msg) {
       const el = document.getElementById("logs");
@@ -466,32 +473,67 @@
       el.scrollTop = el.scrollHeight;
     }
 
+    function showToast(msg) {
+      const toast = document.getElementById("toastAlert");
+      const msgEl = document.getElementById("toastMsg");
+      msgEl.innerText = msg;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+
+    function showTimeoutModal(titleText, bodyHtml) {
+      const modal = document.getElementById("timeoutModal");
+      document.getElementById("modalTitle").innerText = titleText;
+      document.getElementById("modalMsg").innerHTML = bodyHtml;
+      modal.classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("timeoutModal").classList.add("hidden");
+    }
+
+    function handleLogout() {
+      localStorage.clear();
+      location.reload();
+    }
+
     async function handleLogin() {
       const u = document.getElementById("authUsername").value.trim();
       const p = document.getElementById("authPassword").value.trim();
-      if (!u || !p) return alert("Nhập đủ tài khoản/mật khẩu!");
+      if (!u || !p) return alert("Vui lòng nhập tài khoản và mật khẩu!");
 
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: u, password: p })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        token = data.access_token;
-        document.getElementById("authSection").classList.add("hidden");
-        document.getElementById("gameSection").classList.remove("hidden");
-        document.getElementById("userBadge").classList.remove("hidden");
-        document.getElementById("displayUser").innerText = data.username;
-        initSocket();
-      } else {
-        alert(data.detail || "Đăng nhập thất bại");
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          token = data.access_token;
+          currentUsername = data.username;
+          localStorage.setItem("token", token);
+          localStorage.setItem("username", currentUsername);
+
+          document.getElementById("authSection").classList.add("hidden");
+          document.getElementById("gameSection").classList.remove("hidden");
+          document.getElementById("userBadge").classList.remove("hidden");
+          document.getElementById("displayUser").innerText = currentUsername;
+
+          initSocket();
+        } else {
+          alert(data.detail || "Đăng nhập thất bại");
+        }
+      } catch (err) {
+        alert("Không thể kết nối đến máy chủ!");
       }
     }
 
     async function handleRegister() {
       const u = document.getElementById("authUsername").value.trim();
       const p = document.getElementById("authPassword").value.trim();
+      if (!u || !p) return alert("Vui lòng nhập tài khoản và mật khẩu!");
+
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -502,7 +544,12 @@
     }
 
     function initSocket() {
+      if (socket) socket.disconnect();
       socket = io({ auth: { token: token } });
+
+      socket.on("connect", () => {
+        log("🔌 Đã kết nối thời gian thực với máy chủ.");
+      });
 
       socket.on("timer_tick", (d) => {
         const timerEl = document.getElementById("timerDisplay");
@@ -512,19 +559,24 @@
         }
       });
 
+      socket.on("game_started", (d) => {
+        log(`🏁 <b>${d.message}</b>`);
+      });
+
       socket.on("word_accepted", (data) => {
-    // 1. Cập nhật từ vựng hiện tại
-    const wordDisplay = document.getElementById("currentWord");
-    if (wordDisplay) wordDisplay.innerText = data.last_word || data.word;
-
-    // 2. Cập nhật IPA
-    const ipaDisplay = document.getElementById("wordIpa");
-    if (ipaDisplay) ipaDisplay.innerText = data.ipa || `/${data.word}/`;
-
-    // 3. Cập nhật Nghĩa
-    const meaningDisplay = document.getElementById("wordMeaning");
-    if (meaningDisplay) meaningDisplay.innerText = data.meaning || "Từ vựng tiếng Anh";
-});
+        document.getElementById("lastWordDisplay").innerText = (data.last_word || data.word).toUpperCase();
+        document.getElementById("wordIpaDisplay").innerText = `🔊 ${data.ipa || `/${data.word}/`}`;
+        document.getElementById("wordMeaningDisplay").innerText = `📖 ${data.meaning || "Từ vựng tiếng Anh"}`;
+        log(`✅ <b>${data.username}</b> đánh từ: <b>${data.word}</b> (+10 điểm)`);
+      });
+      // Khi server trả về IPA và nghĩa chi tiết từ tiến trình chạy ngầm
+      socket.on("word_details_updated", (data) => {
+        const currentDisplayedWord = document.getElementById("lastWordDisplay").innerText.trim().toLowerCase();
+        if (currentDisplayedWord === data.word.toLowerCase()) {
+          document.getElementById("wordIpaDisplay").innerText = `🔊 ${data.ipa}`;
+          document.getElementById("wordMeaningDisplay").innerText = `📖 ${data.meaning}`;
+        }
+      });
 
       socket.on("new_chat_message", (d) => {
         const box = document.getElementById("chatMessages");
@@ -537,17 +589,23 @@
       });
 
       socket.on("turn_timeout", (data) => {
-        log(`⏰ <b>${data.timed_out_user}</b> hết giờ! Chuyển cho <b>${data.next_user}</b>.`);
+        log(`⏰ <b>${data.timed_out_user}</b> hết giờ (còn ${data.lives_left} ❤️)! Chuyển cho <b>${data.next_user}</b>.`);
         const isMe = (data.timed_out_sid === socket.id);
-        showTimeoutModal(isMe, data.timed_out_user, data.next_user);
+        if (isMe) {
+          showTimeoutModal("💔 BẠN MẤT LƯỢT!", `Bạn bị trừ 1 mạng (còn ${data.lives_left} ❤️).<br>Lượt chuyển cho <b>${data.next_user}</b>!`);
+        } else {
+          showTimeoutModal("🎁 TỚI LƯỢT BẠN!", `<b>${data.timed_out_user}</b> đã hết giờ.<br>Bây giờ tới lượt bạn ra từ!`);
+        }
+        setTimeout(closeModal, 2500);
       });
 
-      // Bắt thông báo lỗi khi gõ sai / trùng từ / sai lượt
-      socket.on("error_message", (d) => {
-        // Ghi vào bảng tin màu đỏ
-        log(`⚠️ <b style="color: #ff4757;">Lỗi:</b> ${d.message}`);
+      socket.on("game_over", (data) => {
+        log(`🏆 <b>TRẬN ĐẤU KẾT THÚC:</b> Người thắng: <b>${data.winner}</b> (${data.reason})`);
+        showTimeoutModal("🏆 KẾT THÚC!", `Người chiến thắng: <b>${data.winner}</b><br>${data.reason}`);
+      });
 
-        // Hiển thị hiệu ứng rung lắc ô nhập từ
+      socket.on("error_message", (d) => {
+        log(`⚠️ <b style="color: #ff4757;">Lỗi:</b> ${d.message}`);
         const input = document.getElementById("wordInput");
         if (input) {
           input.style.border = "2px solid #ff4757";
@@ -557,69 +615,75 @@
             input.style.backgroundColor = "#ffffff";
           }, 600);
         }
-
-        // Hiện cảnh báo ngắn
         showToast(d.message);
       });
 
       socket.on("room_updated", (room) => {
-    if (room.last_word) {
-        const wordEl = document.getElementById("currentWord");
-        const ipaEl = document.getElementById("wordIpa");
-        const meaningEl = document.getElementById("wordMeaning");
+        document.getElementById("roomStatus").innerText = room.status;
 
-        if (wordEl) wordEl.innerText = room.last_word;
-        if (ipaEl && room.last_ipa) ipaEl.innerText = room.last_ipa;
-        if (meaningEl && room.last_meaning) meaningEl.innerText = room.last_meaning;
-    }
+        if (room.last_word) {
+          document.getElementById("lastWordDisplay").innerText = room.last_word.toUpperCase();
+          if (room.last_ipa) document.getElementById("wordIpaDisplay").innerText = `🔊 ${room.last_ipa}`;
+          if (room.last_meaning) document.getElementById("wordMeaningDisplay").innerText = `📖 ${room.last_meaning}`;
+        }
 
+        // Render người chơi
+        const playerListEl = document.getElementById("playerList");
+        playerListEl.innerHTML = "";
+        room.players.forEach(p => {
+          const isTurn = (p.sid === room.current_player_sid && room.status === "PLAYING");
+          const hearts = "❤️".repeat(p.lives) || "💀";
+          const readyText = p.is_ready ? "✔️" : "⏳";
+          
+          const chip = document.createElement("div");
+          chip.className = `player-chip ${isTurn ? 'active-turn' : ''}`;
+          chip.innerHTML = `<span>${p.username}</span> <span>[${p.score}đ]</span> <span>${hearts}</span> <span>${readyText}</span>`;
+          playerListEl.appendChild(chip);
+        });
+
+        // Kiểm soát ô nhập từ
+        const wordInput = document.getElementById("wordInput");
+        const sendBtn = document.getElementById("sendBtn");
+        const readyBtn = document.getElementById("readyBtn");
+
+        const myPlayer = room.players.find(p => p.sid === socket.id);
+        if (myPlayer) {
+          readyBtn.innerText = myPlayer.is_ready ? "Hủy Sẵn Sàng" : "Sẵn sàng";
+        }
 
         if (room.status === "PLAYING") {
-        const isMyTurn = (room.current_turn === currentUsername || room.current_player === currentUsername);
+          readyBtn.disabled = true;
+          const isMyTurn = (room.current_player_sid === socket.id);
           if (isMyTurn) {
             wordInput.disabled = false;
             sendBtn.disabled = false;
-            const nextChar = room.last_word ? room.last_word.slice(-1) : "";
-            wordInput.placeholder = nextChar ? `Lượt bạn! Nối tiếp chữ '${nextChar}'...` : "Lượt bạn! Gõ từ bất kỳ...";
+            const nextChar = room.last_word ? room.last_word.slice(-1).toUpperCase() : "";
+            wordInput.placeholder = nextChar ? `Lượt bạn! Bắt đầu bằng chữ '${nextChar}'...` : "Lượt bạn! Gõ từ bất kỳ...";
             wordInput.focus();
           } else {
             wordInput.disabled = true;
             sendBtn.disabled = true;
             wordInput.placeholder = "Đang chờ đối thủ nối từ...";
           }
+        } else {
+          readyBtn.disabled = false;
+          wordInput.disabled = true;
+          sendBtn.disabled = true;
+          wordInput.placeholder = "Chờ bắt đầu ván...";
         }
       });
     }
 
-    function showTimeoutModal(isMe, timedOutUser, nextUser) {
-      const modal = document.getElementById("timeoutModal");
-      const title = document.getElementById("modalTitle");
-      const msg = document.getElementById("modalMsg");
-
-      if (isMe) {
-        title.innerText = "💔 BẠN MẤT LƯỢT!";
-        msg.innerHTML = `Hết 15 giây mà chưa nối được từ.<br>Lượt chuyển sang cho <b>${nextUser}</b>!`;
-      } else {
-        title.innerText = "🎁 TỚI LƯỢT BẠN!";
-        msg.innerHTML = `<b>${timedOutUser}</b> đã hết giờ.<br>Bây giờ tới lượt <b>bạn</b> ra từ!`;
-      }
-
-      modal.classList.remove("hidden");
-      setTimeout(() => closeModal(), 3000);
-    }
-
-    function closeModal() {
-      document.getElementById("timeoutModal").classList.add("hidden");
-    }
-
     function joinRoom() {
       currentRoomId = document.getElementById("roomIdInput").value.trim();
+      if (!currentRoomId) return;
       socket.emit("join_room", { room_id: currentRoomId });
       document.getElementById("readyBtn").disabled = false;
       log(`🚪 Vào phòng: <b>${currentRoomId}</b>`);
     }
 
     function toggleReady() {
+      if (!currentRoomId) return;
       socket.emit("toggle_ready", { room_id: currentRoomId });
     }
 
@@ -632,15 +696,6 @@
       }
     }
 
-    function showToast(msg) {
-    const toast = document.getElementById("toastAlert");
-    const msgEl = document.getElementById("toastMsg");
-    msgEl.innerText = msg;
-    toast.classList.add("show");
-    setTimeout(() => {
-        toast.classList.remove("show");
-    }, 2500);
-    }
     function sendChat() {
       const input = document.getElementById("chatInput");
       const msg = input.value.trim();
@@ -649,9 +704,17 @@
         input.value = "";
       }
     }
-    </script>
-    <div id="toastAlert" class="toast-alert">
-    <span>⚠️</span> <span id="toastMsg">Từ này đã được sử dụng!</span>
-    </div>
+
+    // Tự động khôi phục phiên đăng nhập nếu đã có token
+    window.addEventListener("DOMContentLoaded", () => {
+      if (token && currentUsername) {
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("gameSection").classList.remove("hidden");
+        document.getElementById("userBadge").classList.remove("hidden");
+        document.getElementById("displayUser").innerText = currentUsername;
+        initSocket();
+      }
+    });
+  </script>
 </body>
 </html>

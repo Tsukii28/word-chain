@@ -1,31 +1,60 @@
+import asyncio
 import os
 import uuid
-import asyncio
+from contextlib import asynccontextmanager
+from typing import Dict, List, Optional
+
 import httpx
-import uvicorn
 import socketio
-from fastapi import FastAPI, HTTPException, status, Depends
+import uvicorn
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
-from models import (
-    UserRegisterRequest, UserLoginRequest, TokenResponse,
-    UserProfileResponse, CreateRoomRequest, RoomResponse
-)
 from auth import (
-    hash_password, verify_password, create_access_token,
-    get_current_user, decode_token
+    create_access_token,
+    decode_token,
+    get_current_user,
+    hash_password,
+    verify_password,
 )
-from game_logic import Room, Player
-from database import init_db, get_db, UserModel, SessionLocal
+from database import SessionLocal, UserModel, get_db, init_db
+from game_logic import Player, Room
+from models import (
+    CreateRoomRequest,
+    RoomResponse,
+    TokenResponse,
+    UserLoginRequest,
+    UserProfileResponse,
+    UserRegisterRequest,
+)
 
-# Khởi tạo bảng dữ liệu
+# Khởi tạo DB table
 init_db()
 
-# Khởi tạo Socket.IO Async Server & FastAPI
+# HTTP Client dùng chung (tái sử dụng connection pool)
+http_client: Optional[httpx.AsyncClient] = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global http_client
+    http_client = httpx.AsyncClient(
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        },
+        timeout=4.0,
+        follow_redirects=True,
+    )
+    yield
+    await http_client.aclose()
+    # Dọn dẹp tất cả timer đang chạy nếu server tắt
+    for task in room_timers.values():
+        if not task.done():
+            task.cancel()
+
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
-app = FastAPI(title="English Word Chain Game")
+app = FastAPI(title="English Word Chain Game", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,7 +64,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-fake_users_db = {}
 rooms_db: dict[str, Room] = {}
 token_stats = {"total_tokens_issued": 0, "active_users": set()}
 
@@ -72,38 +100,33 @@ async def fetch_word_details_fast(word: str) -> dict:
     if word_clean in WORD_CACHE:
         return WORD_CACHE[word_clean]
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    }
+    client = http_client or httpx.AsyncClient(timeout=4.0)
 
-    # Nới timeout lên 3.5s để server Render không bị đứt kết nối sớm
-    async with httpx.AsyncClient(headers=headers, timeout=3.5, follow_redirects=True) as client:
-        task_ipa = get_clean_ipa(word_clean, client)
+    task_ipa = get_clean_ipa(word_clean, client)
 
-        async def get_meaning():
-            try:
-                params = {"client": "gtx", "sl": "en", "tl": "vi", "dt": "t", "q": word_clean}
-                r = await client.get("https://translate.googleapis.com/translate_a/single", params=params)
-                if r.status_code == 200:
-                    d = r.json()
-                    if d and d[0] and d[0][0]:
-                        return d[0][0][0]
-            except Exception as e:
-                print(f">>> [LỖI DỊCH NGHĨA]: {e}")
-            return "Từ vựng tiếng Anh"
+    async def get_meaning():
+        try:
+            params = {"client": "gtx", "sl": "en", "tl": "vi", "dt": "t", "q": word_clean}
+            r = await client.get(
+                "https://translate.googleapis.com/translate_a/single", params=params
+            )
+            if r.status_code == 200:
+                d = r.json()
+                if d and d[0] and d[0][0]:
+                    return d[0][0][0]
+        except Exception as e:
+            print(f">>> [LỖI DỊCH NGHĨA]: {e}")
+        return "Từ vựng tiếng Anh"
 
-        results = await asyncio.gather(task_ipa, get_meaning(), return_exceptions=True)
-        
-        # Kiểm tra kết quả bọc an toàn chống exception
-        ipa_res = results[0] if isinstance(results[0], str) else f"/{word_clean}/"
-        meaning_res = results[1] if isinstance(results[1], str) else "Từ vựng tiếng Anh"
+    results = await asyncio.gather(task_ipa, get_meaning(), return_exceptions=True)
+
+    ipa_res = results[0] if isinstance(results[0], str) else f"/{word_clean}/"
+    meaning_res = results[1] if isinstance(results[1], str) else "Từ vựng tiếng Anh"
 
     res_data = {"ipa": ipa_res, "meaning": meaning_res}
     WORD_CACHE[word_clean] = res_data
-    print(f">>> [TRA TỪ XONG] {word_clean} -> IPA: {ipa_res}, Nghĩa: {meaning_res}")
     return res_data
 
-# Alias đảm bảo tương thích mọi hàm gọi
 fetch_word_details = fetch_word_details_fast
 
 # ================= REST APIS =================
@@ -119,11 +142,10 @@ def register(req: UserRegisterRequest, db: Session = Depends(get_db)):
         password_hash=hash_password(req.password),
         score=0,
         games_played=0,
-        games_won=0
+        games_won=0,
     )
     db.add(new_user)
     db.commit()
-    db.refresh(new_user)
     return {"message": "Đăng ký thành công"}
 
 @app.post("/api/auth/login", response_model=TokenResponse, tags=["Auth"])
@@ -144,7 +166,7 @@ def get_rooms():
             "room_id": r.room_id,
             "status": r.status,
             "player_count": len(r.players),
-            "last_word": r.last_word
+            "last_word": r.last_word,
         }
         for r in rooms_db.values()
     ]
@@ -158,7 +180,7 @@ def get_me(username: str = Depends(get_current_user), db: Session = Depends(get_
         "username": user.username,
         "score": user.score,
         "games_played": user.games_played,
-        "games_won": user.games_won
+        "games_won": user.games_won,
     }
 
 @app.get("/api/leaderboard", tags=["Leaderboard"])
@@ -168,28 +190,38 @@ def get_leaderboard(db: Session = Depends(get_db)):
         {
             "username": u.username,
             "score": u.score,
-            "games_won": u.games_won
+            "games_won": u.games_won,
         }
         for u in top_users
     ]
 
 # ================= TIMER & LOGIC ĐỔI LƯỢT =================
 
-def switch_turn(room):
-    """Đổi lượt theo current_turn_index của Room."""
+def stop_room_timer(room_id: str):
+    """Hủy timer hiện tại của phòng."""
+    if room_id in room_timers and not room_timers[room_id].done():
+        room_timers[room_id].cancel()
+    room_timers.pop(room_id, None)
+
+def switch_turn(room: Room):
+    """Chuyển lượt sang người còn sống tiếp theo."""
     if not room or not room.players:
         return None, None
 
     old_player = room.current_player()
-    room.current_turn_index = (room.current_turn_index + 1) % len(room.players)
-    new_player = room.current_player()
-    return old_player, new_player
+    
+    # Tìm người tiếp theo còn mạng sống (lives > 0)
+    for _ in range(len(room.players)):
+        room.current_turn_index = (room.current_turn_index + 1) % len(room.players)
+        cand = room.current_player()
+        if cand and cand.lives > 0:
+            return old_player, cand
+
+    return old_player, None
 
 async def start_turn_timer(room_id: str):
     room_id = str(room_id).strip()
-
-    if room_id in room_timers and not room_timers[room_id].done():
-        room_timers[room_id].cancel()
+    stop_room_timer(room_id)
 
     async def _timer_worker():
         try:
@@ -203,29 +235,40 @@ async def start_turn_timer(room_id: str):
             if not room or room.status != "PLAYING":
                 return
 
-            old_p, new_p = switch_turn(room)
-            if not old_p or not new_p:
+            timed_out_player = room.current_player()
+            if timed_out_player:
+                timed_out_player.lives = max(0, timed_out_player.lives - 1)
+
+            # Kiểm tra số người còn sống (lives > 0)
+            alive_players = [p for p in room.players if p.lives > 0]
+            if len(alive_players) <= 1:
+                room.status = "ENDED"
+                winner = alive_players[0] if alive_players else None
+                await sio.emit("game_over", {
+                    "winner": winner.username if winner else "Hòa",
+                    "reason": f"{timed_out_player.username} hết thời gian và hết mạng!"
+                }, room=room_id)
+                await sio.emit("room_updated", room.to_dict(), room=room_id)
                 return
 
-            print(f">>> [TIMER] Hết giờ! Chuyển từ {old_p.username} sang {new_p.username}")
+            old_p, new_p = switch_turn(room)
+            if not new_p:
+                return
 
-            # 1. Phát thông báo mất lượt cho cả phòng
             await sio.emit("turn_timeout", {
-                "timed_out_sid": old_p.sid,
-                "timed_out_user": old_p.username,
-                "next_user": new_p.username
+                "timed_out_sid": old_p.sid if old_p else "",
+                "timed_out_user": old_p.username if old_p else "",
+                "lives_left": old_p.lives if old_p else 0,
+                "next_user": new_p.username,
             }, room=room_id)
 
-            # 2. Đồng bộ room mới nhất
             await sio.emit("room_updated", room.to_dict(), room=room_id)
-
-            # 3. Kích hoạt đếm ngược 20s cho người vừa nhận lượt
             await start_turn_timer(room_id)
 
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            print(f">>> [LỖI TIMER]: {e}")
+            print(f">>> [LỖI TIMER {room_id}]: {e}")
 
     room_timers[room_id] = asyncio.create_task(_timer_worker())
 
@@ -235,12 +278,11 @@ async def start_turn_timer(room_id: str):
 async def connect(sid, environ, auth):
     token = auth.get("token") if auth else None
     username = decode_token(token) if token else None
-    
+
     if not username:
         return False
-        
+
     await sio.save_session(sid, {"username": username})
-    print(f"User {username} kết nối với Socket ID: {sid}")
 
 @sio.event
 async def join_room(sid, data):
@@ -270,11 +312,11 @@ async def send_chat(sid, data):
     session = await sio.get_session(sid)
     username = session.get("username", "Khách")
 
-    await sio.emit("new_chat_message", {
-        "sender": username,
-        "message": msg,
-        "is_me_sid": sid
-    }, room=room_id)
+    await sio.emit(
+        "new_chat_message",
+        {"sender": username, "message": msg, "is_me_sid": sid},
+        room=room_id,
+    )
 
 @sio.event
 async def toggle_ready(sid, data):
@@ -290,17 +332,25 @@ async def toggle_ready(sid, data):
     ready_count = sum(1 for p in room.players if p.is_ready)
     if len(room.players) >= 2 and ready_count == len(room.players) and room.status == "WAITING":
         room.status = "PLAYING"
+        # Reset mạng và điểm trận mới cho người chơi
+        for p in room.players:
+            p.lives = 3
+
         if not room.last_word:
             room.last_word = "apple"
             info = await fetch_word_details_fast("apple")
             room.last_ipa = info["ipa"]
             room.last_meaning = info["meaning"]
-            
-        await sio.emit("game_started", {"message": f"Trận đấu bắt đầu! Từ khởi đầu là '{room.last_word}'"}, room=room_id)
-        await start_turn_timer(room_id)
 
-    room_data = room.to_dict()
-    await sio.emit("room_updated", room_data, room=room_id)
+        await sio.emit(
+            "game_started",
+            {"message": f"Trận đấu bắt đầu! Từ khởi đầu: '{room.last_word}'"},
+            room=room_id,
+        )
+        await sio.emit("room_updated", room.to_dict(), room=room_id)
+        await start_turn_timer(room_id)
+    else:
+        await sio.emit("room_updated", room.to_dict(), room=room_id)
 
 @sio.event
 async def submit_word(sid, data):
@@ -314,54 +364,86 @@ async def submit_word(sid, data):
     session = await sio.get_session(sid)
     username = session.get("username", "Người chơi")
 
-    # 1. Kiểm tra tính hợp lệ
-    valid, msg = room.validate_and_apply_word(sid, word)
+    # 1. KIỂM TRA HỢP LỆ VÀ ĐỔI LƯỢT NGAY LẬP TỨC (Không chờ API)
+    # Tạm thời gán placeholder để hiển thị tức thì
+    temp_ipa = f"/{word}/"
+    temp_meaning = "Đang tra nghĩa..."
+
+    valid, msg = room.validate_and_apply_word(
+        sid, word, ipa=temp_ipa, meaning=temp_meaning
+    )
     if not valid:
         await sio.emit("error_message", {"message": msg}, to=sid)
         return
 
-    # 2. Lấy đồng thời IPA và Nghĩa (từ cache hoặc API)
-    info = await fetch_word_details_fast(word)
-    room.last_ipa = info["ipa"]
-    room.last_meaning = info["meaning"]
-
-    # 3. Phát dữ liệu đồng thời cho cả phòng
+    # 2. PHÁT NGAY LẬP TỨC CHO CẢ PHÒNG & KÍCH HOẠT LƯỢT TIẾP THEO (Tíc tắc ~5-10ms)
     await sio.emit("word_accepted", {
         "username": username,
         "word": word,
         "last_word": room.last_word,
-        "ipa": info["ipa"],
-        "meaning": info["meaning"]
+        "ipa": temp_ipa,
+        "meaning": temp_meaning
     }, room=room_id)
 
-    # 4. Cập nhật phòng và kích hoạt timer cho người tiếp theo
     await sio.emit("room_updated", room.to_dict(), room=room_id)
     await start_turn_timer(room_id)
 
-    # 5. Lưu điểm vào SQLite
+    # 3. CHẠY NGẦM (BACKGROUND): Tra cứu IPA/Nghĩa thật & Lưu DB
+    async def _fetch_and_broadcast_details(target_word: str):
+        info = await fetch_word_details_fast(target_word)
+        # Nếu từ này vẫn là từ gần nhất của phòng thì cập nhật
+        if room.last_word == target_word:
+            room.last_ipa = info["ipa"]
+            room.last_meaning = info["meaning"]
+            await sio.emit("word_details_updated", {
+                "word": target_word,
+                "ipa": info["ipa"],
+                "meaning": info["meaning"]
+            }, room=room_id)
+
+    asyncio.create_task(_fetch_and_broadcast_details(word))
+
+    # Lưu điểm SQLite
     try:
         with SessionLocal() as db:
             db_user = db.query(UserModel).filter(UserModel.username == username).first()
             if db_user:
                 db_user.score += 10
                 db.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f">>> [LỖI LƯU ĐIỂM]: {e}")
 
 @sio.event
 async def disconnect(sid):
     for r_id, room in list(rooms_db.items()):
-        if room.get_player(sid):
+        leaving_player = room.get_player(sid)
+        if leaving_player:
+            current_before_remove = room.current_player()
+            was_their_turn = (current_before_remove and current_before_remove.sid == sid)
+
             room.remove_player(sid)
             await sio.leave_room(sid, r_id)
-            
+
+            # Nếu phòng trống -> dọn dẹp
             if not room.players:
-                if r_id in room_timers and not room_timers[r_id].done():
-                    room_timers[r_id].cancel()
-                    del room_timers[r_id]
+                stop_room_timer(r_id)
                 del rooms_db[r_id]
-            else:
-                await sio.emit("room_updated", room.to_dict(), room=r_id)
+                break
+
+            # Nếu chỉ còn 1 người khi đang chơi -> kết thúc trận
+            if room.status == "PLAYING" and len(room.players) == 1:
+                stop_room_timer(r_id)
+                room.status = "ENDED"
+                winner = room.players[0]
+                await sio.emit("game_over", {
+                    "winner": winner.username,
+                    "reason": f"{leaving_player.username} đã rời phòng!"
+                }, room=r_id)
+            elif room.status == "PLAYING" and was_their_turn:
+                # Nếu người thoát đang giữ lượt, chuyển ngay cho người kế
+                await start_turn_timer(r_id)
+
+            await sio.emit("room_updated", room.to_dict(), room=r_id)
             break
 
 # ================= GIAO DIỆN CHƠI GAME =================
@@ -370,15 +452,14 @@ async def disconnect(sid):
 def index_page():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     html_file = os.path.join(current_dir, "index.html")
-    
+
     if not os.path.exists(html_file):
         return HTMLResponse(f"<h3>Chưa tìm thấy file index.html tại: {html_file}</h3>")
-        
+
     with open(html_file, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
-# Mount Socket.IO và FastAPI app
 combined_app = socketio.ASGIApp(sio, app)
 
 if __name__ == "__main__":
-    uvicorn.run("main:combined_app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:combined_app", host="0.0.0.0", port=8000, reload=True)
